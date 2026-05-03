@@ -20,7 +20,7 @@ function AdminAuthPageGuard({ children }: PropsWithChildren) {
 function AdminProtectedRoute({ children }: PropsWithChildren) {
   const isAuthenticated = useAppSelector((state) => state.adminAuth.isAuthenticated);
   if (!isAuthenticated) {
-    return <Navigate replace to="/admin/login" />;
+    return <Navigate replace to="/" />;
   }
   return <>{children}</>;
 }
