@@ -77,6 +77,12 @@ export interface BillingPlan {
   featureHighlights: string[];
 }
 
+/** Billing summary joined on GET /platform/tenants only; `null` = no Mongo subscription row. */
+export interface TenantListBillingSummary {
+  status: string;
+  planKey: string;
+}
+
 export interface TenantProfile {
   id: string;
   name: string;
@@ -85,6 +91,7 @@ export interface TenantProfile {
   updatedAt: string;
   deletedAt: string | null;
   purgeAt: string | null;
+  subscription?: TenantListBillingSummary | null;
 }
 
 export interface TenantSubscriptionSnapshot {
@@ -292,3 +299,171 @@ export interface WorkspaceDeleteData {
 export type WorkspaceListResponse = ApiSuccessResponse<Workspace[]>;
 export type WorkspaceResponse = ApiSuccessResponse<Workspace>;
 export type WorkspaceDeleteResponse = ApiSuccessResponse<WorkspaceDeleteData>;
+
+/** GET /platform/overview */
+export interface PlatformOverviewData {
+  tenantsActive: number;
+  tenantsPendingPurge: number;
+  userCount: number;
+}
+
+export type PlatformOverviewResponse = ApiSuccessResponse<PlatformOverviewData>;
+
+/** GET /platform/tenants — paginated; `items` match `TenantProfile` (public tenant row). */
+export interface PlatformTenantListData {
+  items: TenantProfile[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type PlatformTenantListResponse = ApiSuccessResponse<PlatformTenantListData>;
+
+export interface PlatformTenantSoftDeleteData {
+  id: string;
+  deletedAt: string;
+  purgeAt: string;
+}
+
+export type PlatformTenantSoftDeleteResponse =
+  ApiSuccessResponse<PlatformTenantSoftDeleteData>;
+
+/** GET /platform/subscriptions — one billing row (Mongo + Stripe ids). */
+export interface PlatformSubscriptionRow {
+  tenantId: string;
+  status: string;
+  planKey: string;
+  stripeCustomerId?: string;
+  stripePriceId?: string;
+  stripeSubscriptionId?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlatformSubscriptionListData {
+  items: PlatformSubscriptionRow[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type PlatformSubscriptionListResponse =
+  ApiSuccessResponse<PlatformSubscriptionListData>;
+
+export type PlatformSubscriptionDetailResponse =
+  ApiSuccessResponse<PlatformSubscriptionRow>;
+
+/** GET /platform/subscription-plans/admin — catalog row (platform operator). */
+export interface PlatformSubscriptionPlanCatalogRow {
+  id: string;
+  name: string;
+  stripePriceId: string;
+  stripeProductId?: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  trialDays: number;
+  isTrialEnabled: boolean;
+  features?: {
+    maxWorkspaces?: number;
+    maxUsers?: number;
+    maxFileAssets?: number;
+    maxStorageMb?: number;
+  } | null;
+  createdAt: string;
+  archived?: boolean;
+}
+
+export type PlatformSubscriptionPlansAdminResponse =
+  ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow[]>;
+
+export interface CreateSubscriptionPlanData {
+  id: string;
+}
+
+export type CreateSubscriptionPlanResponse =
+  ApiSuccessResponse<CreateSubscriptionPlanData>;
+
+export interface UpdateSubscriptionPlanData {
+  id: string;
+  stripePriceId: string;
+}
+
+export type UpdateSubscriptionPlanResponse =
+  ApiSuccessResponse<UpdateSubscriptionPlanData>;
+
+export interface ArchiveSubscriptionPlanData {
+  id: string;
+}
+
+export type ArchiveSubscriptionPlanResponse =
+  ApiSuccessResponse<ArchiveSubscriptionPlanData>;
+
+/** GET /platform/analytics — per-day tenant growth point. */
+export interface PlatformAnalyticsTenantGrowthBucket {
+  date: string;
+  newTenants: number;
+  cumulativeTenants: number;
+}
+
+/** GET /platform/analytics — current subscription status histogram slice. */
+export interface PlatformAnalyticsSubscriptionStatusSlice {
+  status: string;
+  count: number;
+}
+
+/** GET /platform/analytics — plan distribution row (active + trialing only). */
+export interface PlatformAnalyticsPlanDistributionRow {
+  planId: string | null;
+  planName: string;
+  currency: string;
+  subscribers: number;
+  monthlyRevenue: number;
+}
+
+/** GET /platform/analytics — per-day new MRR added bucket. */
+export interface PlatformAnalyticsNewMrrBucket {
+  date: string;
+  newMrr: number;
+  newSubscriptions: number;
+}
+
+/** GET /platform/analytics — per-currency MRR / ARR roll-up. */
+export interface PlatformAnalyticsRevenueRow {
+  currency: string;
+  mrr: number;
+  arr: number;
+  subscribers: number;
+}
+
+/** GET /platform/analytics — top-level KPIs. */
+export interface PlatformAnalyticsTotals {
+  tenantsActive: number;
+  tenantsPendingPurge: number;
+  tenantsDeleted: number;
+  userCount: number;
+  subscriptionsActive: number;
+  subscriptionsAtRisk: number;
+  subscriptionsCanceled: number;
+  revenue: PlatformAnalyticsRevenueRow[];
+  dominantCurrency: string | null;
+}
+
+export interface PlatformAnalyticsData {
+  range: { days: number; from: string; to: string };
+  totals: PlatformAnalyticsTotals;
+  tenantGrowth: PlatformAnalyticsTenantGrowthBucket[];
+  subscriptionStatus: PlatformAnalyticsSubscriptionStatusSlice[];
+  planDistribution: PlatformAnalyticsPlanDistributionRow[];
+  newMrrByDay: PlatformAnalyticsNewMrrBucket[];
+}
+
+export type PlatformAnalyticsResponse =
+  ApiSuccessResponse<PlatformAnalyticsData>;
+
+export interface PlatformAnalyticsQuery {
+  days?: number;
+}

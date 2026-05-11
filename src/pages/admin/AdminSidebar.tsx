@@ -1,4 +1,4 @@
-import { Gauge, House, LayoutDashboard, Loader2, LogOut } from 'lucide-react';
+import { Building2, CreditCard, Gauge, House, LayoutDashboard, Loader2, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import {
@@ -36,6 +36,16 @@ const NAV_ITEMS = [
     label: 'Dashboard',
     to: '/admin/dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    label: 'Tenants',
+    to: '/admin/tenants',
+    icon: Building2,
+  },
+  {
+    label: 'Subscriptions',
+    to: '/admin/subscriptions',
+    icon: CreditCard,
   },
 ] as const;
 

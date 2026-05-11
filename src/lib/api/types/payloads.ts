@@ -142,3 +142,55 @@ export interface RegisterFileAssetPayload {
 export interface CreateWorkspacePayload {
   name: string;
 }
+
+/** GET /platform/tenants — platform operator list query. */
+export interface PlatformTenantListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  includeDeleted?: boolean;
+  isActive?: boolean;
+}
+
+/** GET /platform/subscriptions — platform operator list query. */
+export interface PlatformSubscriptionListQuery {
+  page?: number;
+  limit?: number;
+  /** Exact Stripe/Mongo subscription status (omit for all rows). */
+  status?: string;
+  tenantId?: string;
+}
+
+export type BillingPlanInterval = 'day' | 'week' | 'month' | 'year';
+
+export interface SubscriptionPlanFeaturesPayload {
+  maxWorkspaces?: number;
+  maxUsers?: number;
+  maxFileAssets?: number;
+  maxStorageMb?: number;
+}
+
+/** POST /platform/subscription-plans */
+export interface CreateSubscriptionPlanPayload {
+  name: string;
+  amount: number;
+  interval: BillingPlanInterval;
+  currency?: string;
+  trialDays?: number;
+  isTrialEnabled?: boolean;
+  features?: SubscriptionPlanFeaturesPayload;
+}
+
+/** PATCH /platform/subscription-plans/:planId — mutable fields only (no price/interval changes). */
+export interface UpdateSubscriptionPlanPayload {
+  name?: string;
+  trialDays?: number;
+  isTrialEnabled?: boolean;
+  features?: SubscriptionPlanFeaturesPayload;
+}
+
+/** GET /platform/subscription-plans/admin — optional filters. */
+export interface PlatformSubscriptionPlansAdminQuery {
+  /** When false, server omits archived plans (`includeArchived=0`). Default / omit = full catalog. */
+  includeArchived?: boolean;
+}

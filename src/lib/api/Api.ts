@@ -28,6 +28,22 @@ import type {
   ListWorkspaceTasksQuery,
   LoginPayload,
   LoginResponse,
+  PlatformAnalyticsQuery,
+  PlatformAnalyticsResponse,
+  PlatformOverviewResponse,
+  ArchiveSubscriptionPlanResponse,
+  CreateSubscriptionPlanPayload,
+  CreateSubscriptionPlanResponse,
+  PlatformSubscriptionDetailResponse,
+  PlatformSubscriptionListQuery,
+  PlatformSubscriptionListResponse,
+  PlatformSubscriptionPlansAdminQuery,
+  PlatformSubscriptionPlansAdminResponse,
+  PlatformTenantListQuery,
+  PlatformTenantListResponse,
+  PlatformTenantSoftDeleteResponse,
+  UpdateSubscriptionPlanPayload,
+  UpdateSubscriptionPlanResponse,
   LogoutPayload,
   LogoutResponse,
   RefreshTokenPayload,
@@ -138,6 +154,29 @@ export type {
   CreateWorkspaceTaskPayload,
   UpdateTenantPayload,
   UpdateWorkspaceTaskPayload,
+  PlatformAnalyticsData,
+  PlatformAnalyticsNewMrrBucket,
+  PlatformAnalyticsPlanDistributionRow,
+  PlatformAnalyticsQuery,
+  PlatformAnalyticsResponse,
+  PlatformAnalyticsRevenueRow,
+  PlatformAnalyticsSubscriptionStatusSlice,
+  PlatformAnalyticsTenantGrowthBucket,
+  PlatformAnalyticsTotals,
+  PlatformOverviewData,
+  PlatformOverviewResponse,
+  PlatformTenantListData,
+  PlatformTenantListQuery,
+  PlatformTenantListResponse,
+  PlatformTenantSoftDeleteData,
+  PlatformTenantSoftDeleteResponse,
+  PlatformSubscriptionListData,
+  PlatformSubscriptionPlanCatalogRow,
+  PlatformSubscriptionRow,
+  ArchiveSubscriptionPlanData,
+  CreateSubscriptionPlanData,
+  PlatformSubscriptionPlansAdminQuery,
+  UpdateSubscriptionPlanData,
 } from '@/lib/api/types';
 
 /** Shared axios instance (`api/client.ts`). Interceptors: token attach + queued refresh (`/auth/refresh`). */
@@ -351,4 +390,100 @@ export const DELETE_WORKSPACE = (
 ): Promise<AxiosResponse<WorkspaceDeleteResponse>> =>
   API.delete<WorkspaceDeleteResponse>(
     `/workspaces/${encodeURIComponent(workspaceId)}`,
+  );
+
+/** GET /platform/overview — platform admin only. */
+export const GET_PLATFORM_OVERVIEW = (): Promise<
+  AxiosResponse<PlatformOverviewResponse>
+> => API.get<PlatformOverviewResponse>('/platform/overview');
+
+/**
+ * GET /platform/analytics — live aggregated metrics for graphing
+ * (tenant growth, status mix, plan distribution, MRR/ARR). `days` clamps the
+ * time-series window (1..180; default 30).
+ */
+export const GET_PLATFORM_ANALYTICS = (
+  query: PlatformAnalyticsQuery = {},
+): Promise<AxiosResponse<PlatformAnalyticsResponse>> =>
+  API.get<PlatformAnalyticsResponse>('/platform/analytics', { params: query });
+
+/** GET /platform/tenants — paginated cross-tenant list. */
+export const GET_PLATFORM_TENANTS = (
+  query: PlatformTenantListQuery = {},
+): Promise<AxiosResponse<PlatformTenantListResponse>> =>
+  API.get<PlatformTenantListResponse>('/platform/tenants', { params: query });
+
+/** GET /platform/tenants/:tenantId */
+export const GET_PLATFORM_TENANT = (
+  tenantId: string,
+): Promise<AxiosResponse<TenantProfileResponse>> =>
+  API.get<TenantProfileResponse>(
+    `/platform/tenants/${encodeURIComponent(tenantId)}`,
+  );
+
+/** PATCH /platform/tenants/:tenantId — name / isActive (active orgs only). */
+export const PATCH_PLATFORM_TENANT = (
+  tenantId: string,
+  data: UpdateTenantPayload,
+): Promise<AxiosResponse<TenantProfileResponse>> =>
+  API.patch<TenantProfileResponse>(
+    `/platform/tenants/${encodeURIComponent(tenantId)}`,
+    data,
+  );
+
+/** DELETE /platform/tenants/:tenantId — soft-delete (TTL purge). */
+export const DELETE_PLATFORM_TENANT = (
+  tenantId: string,
+): Promise<AxiosResponse<PlatformTenantSoftDeleteResponse>> =>
+  API.delete<PlatformTenantSoftDeleteResponse>(
+    `/platform/tenants/${encodeURIComponent(tenantId)}`,
+  );
+
+/** GET /platform/subscriptions — paginated billing rows (Stripe webhook–synced Mongo state). */
+export const GET_PLATFORM_SUBSCRIPTIONS = (
+  query: PlatformSubscriptionListQuery = {},
+): Promise<AxiosResponse<PlatformSubscriptionListResponse>> =>
+  API.get<PlatformSubscriptionListResponse>('/platform/subscriptions', { params: query });
+
+/** GET /platform/subscriptions/:tenantId — one organization billing snapshot. */
+export const GET_PLATFORM_SUBSCRIPTION_BY_TENANT = (
+  tenantId: string,
+): Promise<AxiosResponse<PlatformSubscriptionDetailResponse>> =>
+  API.get<PlatformSubscriptionDetailResponse>(
+    `/platform/subscriptions/${encodeURIComponent(tenantId)}`,
+  );
+
+/** GET /platform/subscription-plans/admin — catalog (platform admin). Pass `includeArchived: false` to hide archived rows. */
+export const GET_PLATFORM_SUBSCRIPTION_PLANS_ADMIN = (
+  query: PlatformSubscriptionPlansAdminQuery = {},
+): Promise<AxiosResponse<PlatformSubscriptionPlansAdminResponse>> =>
+  API.get<PlatformSubscriptionPlansAdminResponse>('/platform/subscription-plans/admin', {
+    params:
+      query.includeArchived === undefined
+        ? {}
+        : { includeArchived: query.includeArchived ? 1 : 0 },
+  });
+
+/** POST /platform/subscription-plans — create Stripe product/price + Mongo catalog row. */
+export const POST_PLATFORM_SUBSCRIPTION_PLAN = (
+  data: CreateSubscriptionPlanPayload,
+): Promise<AxiosResponse<CreateSubscriptionPlanResponse>> =>
+  API.post<CreateSubscriptionPlanResponse>('/platform/subscription-plans', data);
+
+/** PATCH /platform/subscription-plans/:planId — metadata only (not price/interval). */
+export const PATCH_PLATFORM_SUBSCRIPTION_PLAN = (
+  planId: string,
+  data: UpdateSubscriptionPlanPayload,
+): Promise<AxiosResponse<UpdateSubscriptionPlanResponse>> =>
+  API.patch<UpdateSubscriptionPlanResponse>(
+    `/platform/subscription-plans/${encodeURIComponent(planId)}`,
+    data,
+  );
+
+/** DELETE /platform/subscription-plans/:planId — archive (deactivate Stripe + catalog). */
+export const DELETE_PLATFORM_SUBSCRIPTION_PLAN = (
+  planId: string,
+): Promise<AxiosResponse<ArchiveSubscriptionPlanResponse>> =>
+  API.delete<ArchiveSubscriptionPlanResponse>(
+    `/platform/subscription-plans/${encodeURIComponent(planId)}`,
   );
