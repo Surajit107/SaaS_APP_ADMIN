@@ -7,6 +7,7 @@ import {
   GET_PLATFORM_ANALYTICS,
   GET_PLATFORM_OVERVIEW,
   GET_PLATFORM_SUBSCRIPTION_BY_TENANT,
+  GET_PLATFORM_SUBSCRIPTION_PLAN_ADMIN,
   GET_PLATFORM_TENANTS,
   PATCH_PLATFORM_TENANT,
   type UpdateTenantPayload,
@@ -24,6 +25,11 @@ import {
   platformOverviewFetchRequested,
   platformOverviewFetchSucceeded,
 } from '@/features/platform/slice/platformOverviewSlice';
+import {
+  planForEditFetchFailed,
+  planForEditFetchStarted,
+  planForEditFetchSucceeded,
+} from '@/features/platform/slice/platformSubscriptionPlansSlice';
 import {
   platformTenantMutationFailed,
   platformTenantMutationFinished,
@@ -107,6 +113,11 @@ export const platformTenantUpdateFlowRequested = createAction<{
 export const platformTenantDeleteFlowRequested = createAction<{
   tenantId: string;
 }>('platform/tenantDeleteFlowRequested');
+
+/** Loads one catalog row for the edit sheet (GET /platform/subscription-plans/admin/:planId). */
+export const platformAdminPlanForEditFetchRequested = createAction<{
+  planId: string;
+}>('platform/adminPlanForEditFetchRequested');
 
 function* handlePlatformOverviewSync(): Generator {
   try {
@@ -222,6 +233,27 @@ function* handlePlatformTenantUpdateFlow(
   }
 }
 
+function* handlePlatformAdminPlanForEditFetch(
+  action: ReturnType<typeof platformAdminPlanForEditFetchRequested>,
+): Generator {
+  const raw = action.payload.planId.trim();
+  if (raw.length === 0) {
+    return;
+  }
+  try {
+    yield put(planForEditFetchStarted({ planId: raw }));
+    const response = (yield call(
+      GET_PLATFORM_SUBSCRIPTION_PLAN_ADMIN,
+      raw,
+    )) as Awaited<ReturnType<typeof GET_PLATFORM_SUBSCRIPTION_PLAN_ADMIN>>;
+    yield put(planForEditFetchSucceeded(response.data.data));
+  } catch (error: unknown) {
+    const message = getApiErrorMessage(error, 'Unable to load plan for editing');
+    toast.error(message);
+    yield put(planForEditFetchFailed(message));
+  }
+}
+
 function* handlePlatformTenantDeleteFlow(
   action: ReturnType<typeof platformTenantDeleteFlowRequested>,
 ): Generator {
@@ -246,5 +278,9 @@ export function* platformSaga(): Generator {
     takeLatest(platformTenantsListSyncFlowRequested.type, handlePlatformTenantsListSyncFlow),
     takeLatest(platformTenantUpdateFlowRequested.type, handlePlatformTenantUpdateFlow),
     takeLatest(platformTenantDeleteFlowRequested.type, handlePlatformTenantDeleteFlow),
+    takeLatest(
+      platformAdminPlanForEditFetchRequested.type,
+      handlePlatformAdminPlanForEditFetch,
+    ),
   ]);
 }

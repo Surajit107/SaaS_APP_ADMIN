@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { Navigate, Route } from 'react-router-dom';
 
+import { AdminAiChatbotPage } from '@/pages/admin/AdminAiChatbotPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
 import { AdminSubscriptionsPage } from '@/pages/admin/AdminSubscriptionsPage';
 import { AdminTenantsPage } from '@/pages/admin/AdminTenantsPage';
@@ -48,6 +49,7 @@ export const adminRoutes = (
       <Route element={<Navigate replace to="dashboard" />} index />
       <Route element={<AdminDashboardPage />} path="dashboard" />
       <Route element={<AdminTenantsPage />} path="tenants" />
+      <Route element={<AdminAiChatbotPage />} path="ai-chatbot" />
       <Route element={<AdminSubscriptionsPage />} path="subscriptions" />
     </Route>
   </>

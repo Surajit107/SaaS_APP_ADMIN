@@ -168,6 +168,7 @@ export interface SubscriptionPlanFeaturesPayload {
   maxUsers?: number;
   maxFileAssets?: number;
   maxStorageMb?: number;
+  aiChatbot?: boolean;
 }
 
 /** POST /platform/subscription-plans */

@@ -57,6 +57,7 @@ export const createSubscriptionPlanFormSchema = z.object({
   maxUsers: optionalNonNegNumber(),
   maxFileAssets: optionalNonNegNumber(),
   maxStorageMb: optionalNonNegNumber(),
+  aiChatbot: z.boolean().optional(),
 });
 
 export type CreateSubscriptionPlanFormValues = z.output<
@@ -71,6 +72,7 @@ export const updateSubscriptionPlanFormSchema = z.object({
   maxUsers: optionalNonNegNumber(),
   maxFileAssets: optionalNonNegNumber(),
   maxStorageMb: optionalNonNegNumber(),
+  aiChatbot: z.boolean().optional(),
 });
 
 export type UpdateSubscriptionPlanFormValues = z.output<

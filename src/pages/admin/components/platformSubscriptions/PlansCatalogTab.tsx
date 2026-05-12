@@ -21,7 +21,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -61,6 +61,8 @@ import {
   PATCH_PLATFORM_SUBSCRIPTION_PLAN,
   POST_PLATFORM_SUBSCRIPTION_PLAN,
 } from '@/lib/api/Api';
+import { platformAdminPlanForEditFetchRequested } from '@/features/platform/saga/platformSaga';
+import { planForEditFetchCleared } from '@/features/platform/slice/platformSubscriptionPlansSlice';
 import { getApiErrorMessage } from '@/lib/api/errorMessage';
 import type {
   CreateSubscriptionPlanPayload,
@@ -68,12 +70,14 @@ import type {
   SubscriptionPlanFeaturesPayload,
   UpdateSubscriptionPlanPayload,
 } from '@/lib/api/types';
+import { isPlanNameAiChatbotTier } from '@/lib/billing/subscriptionPlanAiChatbot';
 import {
   createSubscriptionPlanFormSchema,
   type CreateSubscriptionPlanFormValues,
   updateSubscriptionPlanFormSchema,
   type UpdateSubscriptionPlanFormValues,
 } from '@/lib/validation/platformSubscriptionPlanSchemas';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 
 function formatMoney(amount: number, currency: string): string {
   try {
@@ -86,13 +90,18 @@ function formatMoney(amount: number, currency: string): string {
   }
 }
 
-function formatFeaturesSummary(
-  features: PlatformSubscriptionPlanCatalogRow['features'],
-): string {
+function formatFeaturesSummary(row: PlatformSubscriptionPlanCatalogRow): string {
+  const { features } = row;
+  const parts = [...row.featureHighlights];
+  if (features?.aiChatbot === false) {
+    parts.push('AI off');
+  }
+  if (parts.length > 0) {
+    return parts.join(' · ');
+  }
   if (features === null || features === undefined) {
     return '—';
   }
-  const parts: string[] = [];
   if (features.maxWorkspaces !== undefined) {
     parts.push(`${features.maxWorkspaces} ws`);
   }
@@ -124,6 +133,12 @@ function buildFeaturesFromCreate(
   if (v.maxStorageMb !== undefined) {
     out.maxStorageMb = v.maxStorageMb;
   }
+  if (
+    v.aiChatbot !== undefined &&
+    isPlanNameAiChatbotTier(v.name.trim())
+  ) {
+    out.aiChatbot = v.aiChatbot;
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -137,6 +152,7 @@ const FEATURE_KEYS = [
 function mergeFeaturesForUpdate(
   existing: PlatformSubscriptionPlanCatalogRow['features'],
   values: UpdateSubscriptionPlanFormValues,
+  effectivePlanName: string,
 ): SubscriptionPlanFeaturesPayload | undefined {
   const prev = existing ?? {};
   const merged: SubscriptionPlanFeaturesPayload = { ...prev };
@@ -148,10 +164,29 @@ function mergeFeaturesForUpdate(
       changed = true;
     }
   }
+  const tierOk = isPlanNameAiChatbotTier(effectivePlanName.trim());
+  const prevAi = prev.aiChatbot;
+  if (tierOk) {
+    const currentEffectiveAi = prevAi ?? true;
+    if (
+      values.aiChatbot !== undefined &&
+      values.aiChatbot !== currentEffectiveAi
+    ) {
+      merged.aiChatbot = values.aiChatbot;
+      changed = true;
+    }
+  } else if (merged.aiChatbot === true) {
+    merged.aiChatbot = false;
+    changed = true;
+  }
   return changed ? merged : undefined;
 }
 
 export function PlansCatalogTab(): ReactElement {
+  const dispatch = useAppDispatch();
+  const planForEditFetch = useAppSelector(
+    (s) => s.platformSubscriptionPlans.planForEditFetch,
+  );
   const [plans, setPlans] = useState<PlatformSubscriptionPlanCatalogRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +196,22 @@ export function PlansCatalogTab(): ReactElement {
   const [editPlan, setEditPlan] = useState<PlatformSubscriptionPlanCatalogRow | null>(null);
   const [archivePlan, setArchivePlan] = useState<PlatformSubscriptionPlanCatalogRow | null>(null);
   const [isMutating, setIsMutating] = useState(false);
+
+  const effectiveEditPlan = useMemo((): PlatformSubscriptionPlanCatalogRow | null => {
+    if (editPlan === null) {
+      return null;
+    }
+    const { requestedPlanId, plan, status } = planForEditFetch;
+    if (
+      status === 'succeeded' &&
+      plan !== null &&
+      plan.id === editPlan.id &&
+      requestedPlanId === editPlan.id
+    ) {
+      return plan;
+    }
+    return editPlan;
+  }, [editPlan, planForEditFetch]);
 
   const loadPlans = useCallback(async (): Promise<void> => {
     setIsLoading(true);
@@ -197,6 +248,7 @@ export function PlansCatalogTab(): ReactElement {
       maxUsers: undefined,
       maxFileAssets: undefined,
       maxStorageMb: undefined,
+      aiChatbot: undefined,
     },
   });
 
@@ -211,17 +263,53 @@ export function PlansCatalogTab(): ReactElement {
     if (editPlan === null) {
       return;
     }
-    const f = editPlan.features ?? undefined;
+    dispatch(platformAdminPlanForEditFetchRequested({ planId: editPlan.id }));
+  }, [dispatch, editPlan?.id]);
+
+  useEffect(() => {
+    if (effectiveEditPlan === null) {
+      return;
+    }
+    const f = effectiveEditPlan.features ?? undefined;
     editForm.reset({
-      name: editPlan.name,
-      trialDays: editPlan.trialDays,
-      isTrialEnabled: editPlan.isTrialEnabled,
+      name: effectiveEditPlan.name,
+      trialDays: effectiveEditPlan.trialDays,
+      isTrialEnabled: effectiveEditPlan.isTrialEnabled,
       maxWorkspaces: f?.maxWorkspaces,
       maxUsers: f?.maxUsers,
       maxFileAssets: f?.maxFileAssets,
       maxStorageMb: f?.maxStorageMb,
+      aiChatbot: effectiveEditPlan.entitlements.aiChatbot,
     });
-  }, [editPlan, editForm]);
+  }, [effectiveEditPlan, editForm]);
+
+  const createPlanNameWatch = createForm.watch('name');
+  const editPlanNameWatch = editForm.watch('name');
+
+  useEffect(() => {
+    if (!createOpen) {
+      return;
+    }
+    if (!isPlanNameAiChatbotTier((createPlanNameWatch ?? '').trim())) {
+      createForm.setValue('aiChatbot', undefined);
+      return;
+    }
+    if (createForm.getValues('aiChatbot') === undefined) {
+      createForm.setValue('aiChatbot', true);
+    }
+  }, [createOpen, createPlanNameWatch, createForm]);
+
+  useEffect(() => {
+    if (effectiveEditPlan === null) {
+      return;
+    }
+    const effective = (editPlanNameWatch ?? effectiveEditPlan.name ?? '').trim();
+    if (!isPlanNameAiChatbotTier(effective)) {
+      if (editForm.getValues('aiChatbot')) {
+        editForm.setValue('aiChatbot', false, { shouldDirty: true });
+      }
+    }
+  }, [effectiveEditPlan, editPlanNameWatch, editForm]);
 
   const onCreateSubmit = createForm.handleSubmit(async (values) => {
     const payload: CreateSubscriptionPlanPayload = {
@@ -252,6 +340,7 @@ export function PlansCatalogTab(): ReactElement {
         maxUsers: undefined,
         maxFileAssets: undefined,
         maxStorageMb: undefined,
+        aiChatbot: undefined,
       });
       await loadPlans();
     } catch (err: unknown) {
@@ -262,24 +351,31 @@ export function PlansCatalogTab(): ReactElement {
   });
 
   const onEditSubmit = editForm.handleSubmit(async (values) => {
-    if (editPlan === null) {
+    const base = effectiveEditPlan;
+    if (base === null) {
       return;
     }
     const payload: UpdateSubscriptionPlanPayload = {};
     const trimmedName = values.name?.trim() ?? '';
-    if (trimmedName.length > 0 && trimmedName !== editPlan.name) {
+    if (trimmedName.length > 0 && trimmedName !== base.name) {
       payload.name = trimmedName;
     }
-    if (values.trialDays !== undefined && values.trialDays !== editPlan.trialDays) {
+    if (values.trialDays !== undefined && values.trialDays !== base.trialDays) {
       payload.trialDays = values.trialDays;
     }
     if (
       values.isTrialEnabled !== undefined &&
-      values.isTrialEnabled !== editPlan.isTrialEnabled
+      values.isTrialEnabled !== base.isTrialEnabled
     ) {
       payload.isTrialEnabled = values.isTrialEnabled;
     }
-    const features = mergeFeaturesForUpdate(editPlan.features, values);
+    const effectiveNameForFeatures =
+      trimmedName.length > 0 ? trimmedName : base.name;
+    const features = mergeFeaturesForUpdate(
+      base.features,
+      values,
+      effectiveNameForFeatures,
+    );
     if (features !== undefined) {
       payload.features = features;
     }
@@ -289,9 +385,10 @@ export function PlansCatalogTab(): ReactElement {
     }
     setIsMutating(true);
     try {
-      await PATCH_PLATFORM_SUBSCRIPTION_PLAN(editPlan.id, payload);
+      await PATCH_PLATFORM_SUBSCRIPTION_PLAN(base.id, payload);
       toast.success('Plan updated');
       setEditPlan(null);
+      dispatch(planForEditFetchCleared());
       await loadPlans();
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Unable to update plan'));
@@ -450,7 +547,7 @@ export function PlansCatalogTab(): ReactElement {
                         </p>
                         <p className="text-muted-foreground/90 mt-1 flex items-center gap-1.5 text-xs">
                           <Gauge aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
-                          <span>Limits: {formatFeaturesSummary(row.features)}</span>
+                          <span>Limits: {formatFeaturesSummary(row)}</span>
                         </p>
                       </div>
                     </div>
@@ -629,6 +726,28 @@ export function PlansCatalogTab(): ReactElement {
                 </div>
               ))}
             </div>
+            {isPlanNameAiChatbotTier((createPlanNameWatch ?? '').trim()) ? (
+              <div className="flex items-center gap-2 pt-1">
+                <Switch
+                  checked={
+                    createForm.watch('aiChatbot') ??
+                    isPlanNameAiChatbotTier((createPlanNameWatch ?? '').trim())
+                  }
+                  id="plan-ai-chatbot"
+                  onCheckedChange={(c) => createForm.setValue('aiChatbot', c)}
+                />
+                <Label className="inline-flex cursor-pointer flex-col gap-0.5 font-normal" htmlFor="plan-ai-chatbot">
+                  <span className="inline-flex items-center gap-1.5 text-sm">
+                    <Sparkles aria-hidden className="text-muted-foreground size-3.5" />
+                    AI assistant (catalog override)
+                  </span>
+                  <span className="text-muted-foreground max-w-md text-xs font-normal">
+                    Optional override for this Pro or Enterprise row: force assistant access on, or turn it off even
+                    when the name would normally qualify.
+                  </span>
+                </Label>
+              </div>
+            ) : null}
             <SheetFooter className="mt-auto flex-col gap-2 sm:flex-row sm:justify-end">
               <Button
                 disabled={isMutating}
@@ -657,6 +776,7 @@ export function PlansCatalogTab(): ReactElement {
           if (!open) {
             setEditPlan(null);
             editForm.clearErrors();
+            dispatch(planForEditFetchCleared());
           }
         }}
       >
@@ -671,6 +791,17 @@ export function PlansCatalogTab(): ReactElement {
                 <SheetDescription className="mt-1.5">
                   Name, trial, and feature caps. Pricing changes require a new plan via Create.
                 </SheetDescription>
+                {editPlan !== null && planForEditFetch.status === 'loading' ? (
+                  <p className="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
+                    <Loader2 className="size-3.5 animate-spin shrink-0" aria-hidden />
+                    Loading latest catalog row…
+                  </p>
+                ) : null}
+                {planForEditFetch.status === 'failed' && planForEditFetch.error ? (
+                  <p className="text-destructive mt-2 text-xs" role="alert">
+                    {planForEditFetch.error}
+                  </p>
+                ) : null}
               </div>
             </div>
           </SheetHeader>
@@ -738,10 +869,37 @@ export function PlansCatalogTab(): ReactElement {
                 </div>
               ))}
             </div>
+            {isPlanNameAiChatbotTier(
+              (editPlanNameWatch ?? effectiveEditPlan?.name ?? '').trim(),
+            ) ? (
+              <div className="flex items-center gap-2 pt-1">
+                <Switch
+                  checked={editForm.watch('aiChatbot') ?? false}
+                  id="edit-plan-ai-chatbot"
+                  onCheckedChange={(c) => editForm.setValue('aiChatbot', c, { shouldDirty: true })}
+                />
+                <Label
+                  className="inline-flex cursor-pointer flex-col gap-0.5 font-normal"
+                  htmlFor="edit-plan-ai-chatbot"
+                >
+                  <span className="inline-flex items-center gap-1.5 text-sm">
+                    <Sparkles aria-hidden className="text-muted-foreground size-3.5" />
+                    AI assistant (catalog override)
+                  </span>
+                  <span className="text-muted-foreground max-w-md text-xs font-normal">
+                    Force assistant on for this plan, or turn it off to revoke access even when the catalog name is
+                    Pro or Enterprise.
+                  </span>
+                </Label>
+              </div>
+            ) : null}
             <SheetFooter className="mt-auto flex-col gap-2 sm:flex-row sm:justify-end">
               <Button
                 disabled={isMutating}
-                onClick={() => setEditPlan(null)}
+                onClick={() => {
+                  setEditPlan(null);
+                  dispatch(planForEditFetchCleared());
+                }}
                 type="button"
                 variant="outline"
               >

@@ -6,6 +6,7 @@ import type {
   AcceptInvitePayload,
   AcceptInviteResponse,
   BillingPlansResponse,
+  BillingPlanResponse,
   CancelSubscriptionPayload,
   CancelSubscriptionResponse,
   CreateUploadSignaturePayload,
@@ -35,6 +36,7 @@ import type {
   CreateSubscriptionPlanPayload,
   CreateSubscriptionPlanResponse,
   PlatformSubscriptionDetailResponse,
+  PlatformSubscriptionPlanDetailResponse,
   PlatformSubscriptionListQuery,
   PlatformSubscriptionListResponse,
   PlatformSubscriptionPlansAdminQuery,
@@ -42,6 +44,7 @@ import type {
   PlatformTenantListQuery,
   PlatformTenantListResponse,
   PlatformTenantSoftDeleteResponse,
+  PlatformAiChatbotStatusResponse,
   UpdateSubscriptionPlanPayload,
   UpdateSubscriptionPlanResponse,
   LogoutPayload,
@@ -83,6 +86,7 @@ export type {
   AuthSessionData,
   AuthSessionUser,
   BillingPlan,
+  BillingPlanResponse,
   BillingPlansResponse,
   CheckoutSuccessSyncData,
   CheckoutSuccessSyncResponse,
@@ -171,12 +175,11 @@ export type {
   PlatformTenantSoftDeleteData,
   PlatformTenantSoftDeleteResponse,
   PlatformSubscriptionListData,
+  PlatformSubscriptionPlanDetailResponse,
   PlatformSubscriptionPlanCatalogRow,
   PlatformSubscriptionRow,
-  ArchiveSubscriptionPlanData,
-  CreateSubscriptionPlanData,
   PlatformSubscriptionPlansAdminQuery,
-  UpdateSubscriptionPlanData,
+  PlatformAiChatbotStatusResponse,
 } from '@/lib/api/types';
 
 /** Shared axios instance (`api/client.ts`). Interceptors: token attach + queued refresh (`/auth/refresh`). */
@@ -237,6 +240,11 @@ export const MARK_IN_APP_NOTIFICATION_READ = (
 
 export const GET_BILLING_PLANS = (): Promise<AxiosResponse<BillingPlansResponse>> =>
   API.get<BillingPlansResponse>('/billing/plans');
+
+export const GET_BILLING_PLAN_BY_ID = (
+  planId: string,
+): Promise<AxiosResponse<BillingPlanResponse>> =>
+  API.get<BillingPlanResponse>(`/billing/plans/${encodeURIComponent(planId)}`);
 
 export const GET_TENANT_SUBSCRIPTION = (): Promise<
   AxiosResponse<TenantSubscriptionResponse>
@@ -464,6 +472,14 @@ export const GET_PLATFORM_SUBSCRIPTION_PLANS_ADMIN = (
         : { includeArchived: query.includeArchived ? 1 : 0 },
   });
 
+/** GET /platform/subscription-plans/admin/:planId — full catalog detail (platform admin). */
+export const GET_PLATFORM_SUBSCRIPTION_PLAN_ADMIN = (
+  planId: string,
+): Promise<AxiosResponse<PlatformSubscriptionPlanDetailResponse>> =>
+  API.get<PlatformSubscriptionPlanDetailResponse>(
+    `/platform/subscription-plans/admin/${encodeURIComponent(planId)}`,
+  );
+
 /** POST /platform/subscription-plans — create Stripe product/price + Mongo catalog row. */
 export const POST_PLATFORM_SUBSCRIPTION_PLAN = (
   data: CreateSubscriptionPlanPayload,
@@ -487,3 +503,8 @@ export const DELETE_PLATFORM_SUBSCRIPTION_PLAN = (
   API.delete<ArchiveSubscriptionPlanResponse>(
     `/platform/subscription-plans/${encodeURIComponent(planId)}`,
   );
+
+/** GET /platform/ai-chatbot/status — integration status (no secrets). */
+export const GET_PLATFORM_AI_CHATBOT_STATUS = (): Promise<
+  AxiosResponse<PlatformAiChatbotStatusResponse>
+> => API.get<PlatformAiChatbotStatusResponse>('/platform/ai-chatbot/status');

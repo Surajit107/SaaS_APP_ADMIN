@@ -73,8 +73,14 @@ export interface BillingPlan {
     maxUsers?: number;
     maxFileAssets?: number;
     maxStorageMb?: number;
+    aiChatbot?: boolean;
   } | null;
+  entitlements: {
+    aiChatbot: boolean;
+  };
   featureHighlights: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Billing summary joined on GET /platform/tenants only; `null` = no Mongo subscription row. */
@@ -108,12 +114,17 @@ export interface TenantSubscriptionSnapshot {
   plan: {
     id: string;
     name: string;
+    stripePriceId: string;
     amount: number;
     currency: string;
     interval: string;
     trialDays: number;
     isTrialEnabled: boolean;
+    features: BillingPlan['features'];
+    entitlements: BillingPlan['entitlements'];
     featureHighlights: string[];
+    createdAt: string;
+    updatedAt: string;
   } | null;
 }
 
@@ -182,6 +193,7 @@ export type UpdateTenantUserResponse = ApiSuccessResponse<TenantUserProfile>;
 export type DeleteTenantUserResponse = ApiSuccessResponse<null>;
 
 export type BillingPlansResponse = ApiSuccessResponse<BillingPlan[]>;
+export type BillingPlanResponse = ApiSuccessResponse<BillingPlan>;
 export type TenantProfileResponse = ApiSuccessResponse<TenantProfile>;
 export type TenantSubscriptionResponse = ApiSuccessResponse<TenantSubscriptionSnapshot>;
 export type CheckoutSessionResponse = ApiSuccessResponse<CheckoutSessionData>;
@@ -372,35 +384,30 @@ export interface PlatformSubscriptionPlanCatalogRow {
     maxUsers?: number;
     maxFileAssets?: number;
     maxStorageMb?: number;
+    aiChatbot?: boolean;
   } | null;
+  entitlements: {
+    aiChatbot: boolean;
+  };
+  featureHighlights: string[];
   createdAt: string;
+  updatedAt: string;
   archived?: boolean;
 }
 
 export type PlatformSubscriptionPlansAdminResponse =
   ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow[]>;
-
-export interface CreateSubscriptionPlanData {
-  id: string;
-}
+export type PlatformSubscriptionPlanDetailResponse =
+  ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow>;
 
 export type CreateSubscriptionPlanResponse =
-  ApiSuccessResponse<CreateSubscriptionPlanData>;
-
-export interface UpdateSubscriptionPlanData {
-  id: string;
-  stripePriceId: string;
-}
+  ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow>;
 
 export type UpdateSubscriptionPlanResponse =
-  ApiSuccessResponse<UpdateSubscriptionPlanData>;
-
-export interface ArchiveSubscriptionPlanData {
-  id: string;
-}
+  ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow>;
 
 export type ArchiveSubscriptionPlanResponse =
-  ApiSuccessResponse<ArchiveSubscriptionPlanData>;
+  ApiSuccessResponse<PlatformSubscriptionPlanCatalogRow>;
 
 /** GET /platform/analytics — per-day tenant growth point. */
 export interface PlatformAnalyticsTenantGrowthBucket {
@@ -467,3 +474,14 @@ export type PlatformAnalyticsResponse =
 export interface PlatformAnalyticsQuery {
   days?: number;
 }
+
+export type PlatformAiChatbotStatusResponse = ApiSuccessResponse<{
+  openrouterKeyConfigured: boolean;
+  groqKeyConfigured: boolean;
+  geminiKeyConfigured: boolean;
+  providerOrder: string;
+  modelOpenrouter: string;
+  modelGroq: string;
+  modelGemini: string;
+  systemPromptConfigured: boolean;
+}>;

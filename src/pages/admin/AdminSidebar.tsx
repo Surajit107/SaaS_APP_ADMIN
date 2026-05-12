@@ -1,4 +1,4 @@
-import { Building2, CreditCard, Gauge, House, LayoutDashboard, Loader2, LogOut } from 'lucide-react';
+import { Bot, Building2, CreditCard, Gauge, House, LayoutDashboard, Loader2, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import {
@@ -46,6 +46,11 @@ const NAV_ITEMS = [
     label: 'Subscriptions',
     to: '/admin/subscriptions',
     icon: CreditCard,
+  },
+  {
+    label: 'AI assistant',
+    to: '/admin/ai-chatbot',
+    icon: Bot,
   },
 ] as const;
 
