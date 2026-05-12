@@ -9,7 +9,7 @@ export default function App() {
     <BrowserRouter>
       <TooltipProvider>
         <AppRoutes />
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </TooltipProvider>
     </BrowserRouter>
   );
