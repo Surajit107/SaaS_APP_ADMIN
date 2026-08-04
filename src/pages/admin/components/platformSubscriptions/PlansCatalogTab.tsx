@@ -479,7 +479,7 @@ export function PlansCatalogTab(): ReactElement {
 
       <section className="border-border/70 overflow-hidden rounded-2xl border bg-card/95 shadow-sm">
         <div className="border-border/60 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-5">
-          <p className="text-muted-foreground inline-flex items-center gap-2 text-xs sm:text-sm">
+          <div className="text-muted-foreground inline-flex items-center gap-2 text-xs sm:text-sm">
             <Layers aria-hidden className="text-muted-foreground/80 size-4 shrink-0" />
             {isLoading ? (
               <Skeleton aria-hidden className="inline-block h-4 w-[min(14rem,100%)] max-w-full" />
@@ -490,7 +490,7 @@ export function PlansCatalogTab(): ReactElement {
                   : `${plans.length} plan${plans.length === 1 ? '' : 's'}`}
               </span>
             )}
-          </p>
+          </div>
         </div>
         <div className="divide-border/60 divide-y">
           {isLoading ? <PlatformTenantListSkeleton rowCount={4} /> : null}

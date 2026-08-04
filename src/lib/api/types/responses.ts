@@ -343,6 +343,8 @@ export type PlatformTenantSoftDeleteResponse =
 /** GET /platform/subscriptions — one billing row (Mongo + Stripe ids). */
 export interface PlatformSubscriptionRow {
   tenantId: string;
+  tenantName: string | null;
+  tenantIsActive: boolean | null;
   status: string;
   planKey: string;
   stripeCustomerId?: string;

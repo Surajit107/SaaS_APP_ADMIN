@@ -158,7 +158,12 @@ export interface PlatformSubscriptionListQuery {
   limit?: number;
   /** Exact Stripe/Mongo subscription status (omit for all rows). */
   status?: string;
+  /** Exact organization id (24-char ObjectId). Prefer `search` for name/id substring. */
   tenantId?: string;
+  /** Case-insensitive substring on tenant name or tenantId. */
+  search?: string;
+  sortBy?: 'updatedAt' | 'createdAt' | 'status' | 'planKey' | 'tenantName';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export type BillingPlanInterval = 'day' | 'week' | 'month' | 'year';

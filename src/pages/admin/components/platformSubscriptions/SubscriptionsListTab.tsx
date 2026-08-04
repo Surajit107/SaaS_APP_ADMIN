@@ -1,5 +1,7 @@
 import {
   Activity,
+  ArrowDownAZ,
+  ArrowUpAZ,
   Ban,
   Building2,
   CalendarRange,
@@ -7,7 +9,6 @@ import {
   ChevronRight,
   CircleAlert,
   CreditCard,
-  Fingerprint,
   History,
   Info,
   Layers,
@@ -57,7 +58,7 @@ import type { PlatformSubscriptionListQuery, PlatformSubscriptionRow } from '@/l
 import { buildPaginationItems } from '@/lib/pagination/buildPaginationItems';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
-const TENANT_ID_DEBOUNCE_MS = 400;
+const SEARCH_DEBOUNCE_MS = 400;
 const PLATFORM_SUB_LIST_MAX_LIMIT = 100;
 const PLATFORM_SUB_LIST_DEFAULT_LIMIT = 20;
 
@@ -75,6 +76,28 @@ const STATUS_FILTER_VALUES = [
 
 type StatusFilterValue = (typeof STATUS_FILTER_VALUES)[number];
 
+const SORT_BY_VALUES = [
+  'updatedAt',
+  'createdAt',
+  'status',
+  'planKey',
+  'tenantName',
+] as const;
+
+type SortByValue = (typeof SORT_BY_VALUES)[number];
+
+const SORT_ORDER_VALUES = ['desc', 'asc'] as const;
+
+type SortOrderValue = (typeof SORT_ORDER_VALUES)[number];
+
+const SORT_BY_LABELS: Record<SortByValue, string> = {
+  updatedAt: 'Updated',
+  createdAt: 'Created',
+  status: 'Status',
+  planKey: 'Plan key',
+  tenantName: 'Organization',
+};
+
 function resolveListLimit(requested: number | undefined): number {
   if (requested === undefined) {
     return PLATFORM_SUB_LIST_DEFAULT_LIMIT;
@@ -86,10 +109,6 @@ function resolveListLimit(requested: number | undefined): number {
   return Math.min(PLATFORM_SUB_LIST_MAX_LIMIT, Math.max(1, n));
 }
 
-function isMongoObjectIdHex(value: string): boolean {
-  return /^[0-9a-fA-F]{24}$/.test(value.trim());
-}
-
 function formatDateTime(iso: string | null | undefined): string {
   if (iso === null || iso === undefined || iso.length === 0) {
     return '—';
@@ -99,6 +118,13 @@ function formatDateTime(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
+}
+
+function resolveTenantDisplayName(row: PlatformSubscriptionRow): string {
+  if (row.tenantName !== null && row.tenantName.trim().length > 0) {
+    return row.tenantName.trim();
+  }
+  return 'Unknown organization';
 }
 
 function DetailField(props: { icon: LucideIcon; label: string; children: ReactNode }): ReactElement {
@@ -141,8 +167,10 @@ export function SubscriptionsListTab(): ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
-  const [tenantIdDraft, setTenantIdDraft] = useState('');
-  const debouncedTenantId = useDebouncedValue(tenantIdDraft, TENANT_ID_DEBOUNCE_MS);
+  const [searchDraft, setSearchDraft] = useState('');
+  const debouncedSearch = useDebouncedValue(searchDraft, SEARCH_DEBOUNCE_MS);
+  const [sortBy, setSortBy] = useState<SortByValue>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<SortOrderValue>('desc');
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailTenantId, setDetailTenantId] = useState<string | null>(null);
@@ -160,23 +188,18 @@ export function SubscriptionsListTab(): ReactElement {
   const loadList = useCallback(async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
-    const trimmedTenant = debouncedTenantId.trim();
+    const trimmedSearch = debouncedSearch.trim();
     const query: PlatformSubscriptionListQuery = {
       page,
       limit: resolveListLimit(limit),
+      sortBy,
+      sortOrder,
     };
     if (statusFilter !== 'all') {
       query.status = statusFilter;
     }
-    if (trimmedTenant.length > 0) {
-      if (!isMongoObjectIdHex(trimmedTenant)) {
-        setIsLoading(false);
-        setError('Tenant id must be a 24-character hex Mongo ObjectId.');
-        setItems([]);
-        setTotal(0);
-        return;
-      }
-      query.tenantId = trimmedTenant;
+    if (trimmedSearch.length > 0) {
+      query.search = trimmedSearch;
     }
     try {
       const res = await GET_PLATFORM_SUBSCRIPTIONS(query);
@@ -192,7 +215,7 @@ export function SubscriptionsListTab(): ReactElement {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, statusFilter, debouncedTenantId]);
+  }, [page, limit, statusFilter, debouncedSearch, sortBy, sortOrder]);
 
   useEffect(() => {
     void loadList();
@@ -240,8 +263,8 @@ export function SubscriptionsListTab(): ReactElement {
     };
   }, [detailOpen, detailTenantId]);
 
-  const handleClearTenantFilter = (): void => {
-    setTenantIdDraft('');
+  const handleClearSearch = (): void => {
+    setSearchDraft('');
     setPage(1);
   };
 
@@ -253,10 +276,10 @@ export function SubscriptionsListTab(): ReactElement {
             <div className="relative min-w-0 flex-1 sm:max-w-md">
               <label
                 className="text-foreground mb-1.5 flex items-center gap-1.5 text-xs font-medium"
-                htmlFor="platform-sub-tenant-id"
+                htmlFor="platform-sub-search"
               >
-                <Fingerprint aria-hidden className="text-muted-foreground size-3.5" />
-                Filter by tenant id
+                <Building2 aria-hidden className="text-muted-foreground size-3.5" />
+                Search by organization name or id
               </label>
               <div className="relative">
                 <Search
@@ -264,29 +287,29 @@ export function SubscriptionsListTab(): ReactElement {
                   aria-hidden
                 />
                 <input
-                  className="border-border/70 bg-muted/25 text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-10 w-full rounded-lg border pl-9 pr-3 font-mono text-sm outline-none focus-visible:ring-2"
-                  id="platform-sub-tenant-id"
+                  className="border-border/70 bg-muted/25 text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 h-10 w-full rounded-lg border pl-9 pr-3 text-sm outline-none focus-visible:ring-2"
+                  id="platform-sub-search"
                   autoComplete="off"
-                  maxLength={24}
+                  maxLength={200}
                   onChange={(e) => {
-                    setTenantIdDraft(e.target.value);
+                    setSearchDraft(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="24-char hex ObjectId…"
+                  placeholder="Type to filter…"
                   spellCheck={false}
-                  type="text"
-                  value={tenantIdDraft}
+                  type="search"
+                  value={searchDraft}
                 />
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button
-                disabled={tenantIdDraft.length === 0}
-                onClick={handleClearTenantFilter}
+                disabled={searchDraft.length === 0}
+                onClick={handleClearSearch}
                 type="button"
                 variant="outline"
               >
-                Clear tenant
+                Clear search
               </Button>
             </div>
           </div>
@@ -312,6 +335,51 @@ export function SubscriptionsListTab(): ReactElement {
                       {v === 'all' ? 'All statuses' : v}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="inline-flex items-center gap-1.5" htmlFor="sub-sort-by">
+                <ArrowDownAZ aria-hidden className="text-muted-foreground size-3.5" />
+                Sort by
+              </Label>
+              <Select
+                value={sortBy}
+                onValueChange={(v) => {
+                  setSortBy(v as SortByValue);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="sub-sort-by" className="w-[11rem]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {SORT_BY_VALUES.map((v) => (
+                    <SelectItem key={v} value={v}>
+                      {SORT_BY_LABELS[v]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="inline-flex items-center gap-1.5" htmlFor="sub-sort-order">
+                <ArrowUpAZ aria-hidden className="text-muted-foreground size-3.5" />
+                Order
+              </Label>
+              <Select
+                value={sortOrder}
+                onValueChange={(v) => {
+                  setSortOrder(v as SortOrderValue);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger id="sub-sort-order" className="w-[9rem]">
+                  <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="desc">Newest / Z→A</SelectItem>
+                  <SelectItem value="asc">Oldest / A→Z</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -362,7 +430,7 @@ export function SubscriptionsListTab(): ReactElement {
 
       <section className="border-border/70 overflow-hidden rounded-2xl border bg-card/95 shadow-sm">
         <div className="border-border/60 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-5">
-          <p className="text-muted-foreground inline-flex items-center gap-2 text-xs sm:text-sm">
+          <div className="text-muted-foreground inline-flex items-center gap-2 text-xs sm:text-sm">
             <CreditCard aria-hidden className="text-muted-foreground/80 size-4 shrink-0" />
             {isLoading && items.length === 0 ? (
               <Skeleton aria-hidden className="inline-block h-4 w-[min(18rem,100%)] max-w-full" />
@@ -375,7 +443,7 @@ export function SubscriptionsListTab(): ReactElement {
                   : `Showing ${startIndex}–${endIndex} of ${total}`}
               </span>
             )}
-          </p>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               aria-label="Previous page"
@@ -418,22 +486,30 @@ export function SubscriptionsListTab(): ReactElement {
                   className="hover:bg-muted/30 flex flex-col gap-1 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5"
                 >
                   <div className="flex min-w-0 flex-1 gap-3 sm:items-start">
-                    <CreditCard
+                    <Building2
                       aria-hidden
                       className="text-muted-foreground/80 mt-0.5 size-4 shrink-0 sm:size-[1.125rem]"
                     />
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <p className="text-foreground font-mono text-sm font-medium tracking-tight">
-                          {row.tenantId}
+                        <p className="text-foreground truncate text-sm font-medium">
+                          {resolveTenantDisplayName(row)}
                         </p>
                         <span
                           className={`inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${subscriptionStatusTone(row.status)}`}
                         >
                           {row.status}
                         </span>
+                        {row.tenantIsActive === false ? (
+                          <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide">
+                            Org inactive
+                          </span>
+                        ) : null}
                       </div>
                       <p className="text-muted-foreground mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <span className="inline-flex min-w-0 items-center gap-1 truncate font-mono">
+                          <span className="truncate">{row.tenantId}</span>
+                        </span>
                         <span className="inline-flex min-w-0 items-center gap-1 truncate">
                           <Tag aria-hidden className="text-muted-foreground/80 size-3 shrink-0" />
                           <span className="truncate">
@@ -553,8 +629,18 @@ export function SubscriptionsListTab(): ReactElement {
             {detailRow !== null ? (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2.5">
-                  <DetailField icon={Building2} label="Tenant id">
-                    <span className="font-mono text-xs tracking-tight break-all">{detailRow.tenantId}</span>
+                  <DetailField icon={Building2} label="Organization">
+                    <span className="font-medium">{resolveTenantDisplayName(detailRow)}</span>
+                    {detailRow.tenantIsActive === false ? (
+                      <span className="text-muted-foreground mt-1 block text-xs">
+                        Organization marked inactive
+                      </span>
+                    ) : null}
+                  </DetailField>
+                  <DetailField icon={Link2} label="Tenant id">
+                    <span className="font-mono text-xs tracking-tight break-all">
+                      {detailRow.tenantId}
+                    </span>
                   </DetailField>
                   <DetailField icon={Activity} label="Status">
                     <span
