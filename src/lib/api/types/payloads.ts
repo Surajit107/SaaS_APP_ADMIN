@@ -33,6 +33,46 @@ export interface VerifyEmailPayload {
   token: string;
 }
 
+/** POST /auth/login/email-code — asks for a one-time code to be emailed. */
+export interface RequestLoginCodePayload {
+  email: string;
+  authScope: AuthLoginScope;
+  tenantRole?: TenantLoginPortalRole;
+}
+
+/** GET /platform/users — lockout support lookup, search is required. */
+export interface PlatformUserSearchQuery {
+  search: string;
+}
+
+/** POST /auth/mfa/verify — finishes a login that answered with a challenge. */
+export interface VerifyMfaPayload {
+  challengeToken: string;
+  /** 6-digit authenticator code, or a recovery code. */
+  code: string;
+}
+
+/** POST /auth/mfa/totp/enable — confirms the authenticator app is set up. */
+export interface EnableTotpPayload {
+  code: string;
+}
+
+/** POST /auth/mfa/totp/disable — password *and* a current second factor. */
+export interface DisableTotpPayload {
+  password: string;
+  code: string;
+}
+
+/** POST /auth/mfa/backup-codes/regenerate — invalidates the previous set. */
+export interface RegenerateBackupCodesPayload {
+  password: string;
+}
+
+/** PATCH /auth/mfa/preferences */
+export interface UpdateMfaPreferencesPayload {
+  isEmailCodeLoginEnabled: boolean;
+}
+
 export interface RefreshTokenPayload {
   refreshToken?: string;
 }

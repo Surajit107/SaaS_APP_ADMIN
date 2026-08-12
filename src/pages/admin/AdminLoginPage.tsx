@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Crown, Eye, EyeClosed } from 'lucide-react';
+import { Crown, Eye, EyeClosed, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate } from 'react-router-dom';
@@ -7,7 +7,11 @@ import { Navigate } from 'react-router-dom';
 import { AuthCardTopHome } from '@/components/auth/AuthCardTopHome';
 import { Button } from '@/components/ui/button';
 import { AdminAuthPortalFooter } from '@/pages/admin/components/AdminAuthPortalFooter';
-import { adminLoginRequested } from '@/features/admin/saga/adminAuthSaga';
+import { AdminMfaChallengeSection } from '@/pages/admin/components/AdminMfaChallengeSection';
+import {
+  adminLoginCodeRequested,
+  adminLoginRequested,
+} from '@/features/admin/saga/adminAuthSaga';
 import { clearError } from '@/features/admin/slice/adminAuthSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { authInputClassName } from '@/lib/validation/authFieldStyles';
@@ -18,9 +22,13 @@ import {
 
 export function AdminLoginPage() {
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isLoading, error } = useAppSelector(
-    (s) => s.adminAuth,
-  );
+  const {
+    isAuthenticated,
+    isLoading,
+    error,
+    mfaChallenge,
+    isLoginCodeRequestPending,
+  } = useAppSelector((s) => s.adminAuth);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const {
@@ -56,6 +64,17 @@ export function AdminLoginPage() {
   }
 
   const onSubmit = (values: LoginFormValues) => dispatch(adminLoginRequested(values));
+  const isAwaitingSecondFactor = mfaChallenge !== null;
+
+  const emailValue = watch('email');
+  const canRequestLoginCode = isEmailLike(emailValue);
+
+  const requestLoginCode = (): void => {
+    if (!canRequestLoginCode) {
+      return;
+    }
+    dispatch(adminLoginCodeRequested({ email: emailValue.trim() }));
+  };
 
   return (
     <div className="from-primary/10 via-background to-background relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-gradient-to-b px-4 py-3 sm:py-4">
@@ -73,12 +92,19 @@ export function AdminLoginPage() {
             Platform owner
           </div>
           <h1 className="text-foreground text-xl font-semibold tracking-tight sm:text-2xl">
-            Sign in to the owner console
+            {isAwaitingSecondFactor
+              ? 'Confirm it is you'
+              : 'Sign in to the owner console'}
           </h1>
           <p className="text-muted-foreground mx-auto mt-1 max-w-md text-xs leading-snug sm:text-sm">
-            Manage tenants, platform health, and product delivery.
+            {isAwaitingSecondFactor
+              ? mfaChallenge.methods.includes('email_code')
+                ? 'Enter the code we emailed you to open the console.'
+                : 'Your password checked out. Enter your second factor to open the console.'
+              : 'Manage tenants, platform health, and product delivery.'}
           </p>
         </div>
+        {isAwaitingSecondFactor ? <AdminMfaChallengeSection /> : (
         <form
           className="relative z-10 space-y-3 px-4 pb-3 sm:px-8"
           noValidate
@@ -151,10 +177,43 @@ export function AdminLoginPage() {
               {error}
             </p>
           ) : null}
+
+          <div className="flex items-center gap-3 pt-1">
+            <span className="bg-border h-px flex-1" aria-hidden />
+            <span className="text-muted-foreground text-[11px] uppercase tracking-wider">
+              or
+            </span>
+            <span className="bg-border h-px flex-1" aria-hidden />
+          </div>
+          <Button
+            className="w-full gap-2"
+            disabled={
+              !canRequestLoginCode || isLoginCodeRequestPending || isLoading
+            }
+            onClick={requestLoginCode}
+            type="button"
+            variant="outline"
+          >
+            <Mail aria-hidden className="size-4 shrink-0" />
+            {isLoginCodeRequestPending
+              ? 'Sending code...'
+              : 'Email me a sign-in code'}
+          </Button>
+          <p className="text-muted-foreground text-center text-xs">
+            {canRequestLoginCode
+              ? 'We will send a 6-digit code to that address. No password needed.'
+              : 'Enter your email above to sign in with a one-time code instead.'}
+          </p>
         </form>
+        )}
 
         <AdminAuthPortalFooter />
       </div>
     </div>
   );
+}
+
+/** Cheap client-side gate for the code button; the server still validates. */
+function isEmailLike(value: string | undefined): value is string {
+  return typeof value === 'string' && /^\S+@\S+\.\S+$/.test(value.trim());
 }

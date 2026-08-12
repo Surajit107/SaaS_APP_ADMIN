@@ -75,11 +75,17 @@ function isRefreshEndpoint(config: InternalAxiosRequestConfig): boolean {
   return (config.url ?? '').toString().includes('/auth/refresh');
 }
 
+/**
+ * Endpoints reached *before* a session exists. A 401 from these is the answer
+ * itself (wrong password, wrong code, dead challenge), so it must surface to the
+ * caller rather than kick off a refresh-and-retry.
+ */
 function isAuthCredentialsEndpoint(baseUrlUrl: string): boolean {
   return (
     baseUrlUrl.includes('/auth/login') ||
     baseUrlUrl.includes('/auth/register') ||
-    baseUrlUrl.includes('/auth/verify-email')
+    baseUrlUrl.includes('/auth/verify-email') ||
+    baseUrlUrl.includes('/auth/mfa/verify')
   );
 }
 

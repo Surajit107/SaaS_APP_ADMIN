@@ -36,6 +36,48 @@ export interface AuthSessionData {
 
 export type AuthTokens = Pick<AuthSessionData, 'accessToken' | 'refreshToken'>;
 
+/** Second factors a pending sign-in challenge will accept. */
+export type MfaChallengeMethod = 'totp' | 'backup_code' | 'email_code';
+
+/**
+ * `/auth/login` when the account carries a second factor. This is a ticket, not
+ * a session — no tokens exist until `/auth/mfa/verify` accepts a code.
+ */
+export interface MfaRequiredData {
+  mfaRequired: true;
+  challengeToken: string;
+  methods: MfaChallengeMethod[];
+  expiresAt: string;
+}
+
+/** `/auth/login` hands back either a session or a second-factor challenge. */
+export type LoginResultData = AuthSessionData | MfaRequiredData;
+
+/** `/auth/mfa/status` — the signed-in operator's own second-factor state. */
+export interface MfaStatus {
+  isTotpEnabled: boolean;
+  totpEnabledAt: string | null;
+  hasPendingEnrollment: boolean;
+  backupCodesRemaining: number;
+  isEmailCodeLoginEnabled: boolean;
+}
+
+/** `/auth/mfa/totp/setup` — nothing is enforced until enable succeeds. */
+export interface TotpEnrollmentData {
+  /** Base32 secret, for apps that cannot scan the QR code. */
+  secret: string;
+  otpauthUri: string;
+  /** PNG data URL rendered server-side. */
+  qrCodeDataUrl: string;
+  expiresAt: string;
+}
+
+/** Recovery codes, returned in plain text exactly once. */
+export interface BackupCodesData {
+  backupCodes: string[];
+  generatedAt: string;
+}
+
 /** `/auth/register` — account created; verify email then `/auth/login` (no tokens here). */
 export interface RegisterSuccessData {
   email: string;
@@ -47,9 +89,37 @@ export interface RegisterSuccessData {
 export type VerifyEmailResponse = ApiSuccessResponse<{ email: string }>;
 
 export type RegisterResponse = ApiSuccessResponse<RegisterSuccessData>;
-export type LoginResponse = ApiSuccessResponse<AuthSessionData>;
+export type LoginResponse = ApiSuccessResponse<LoginResultData>;
+export type VerifyMfaResponse = ApiSuccessResponse<AuthSessionData>;
+/** Always a challenge, even for an address with no account behind it. */
+export type RequestLoginCodeResponse = ApiSuccessResponse<MfaRequiredData>;
+
+/** A row from the platform-wide account lookup used for lockout support. */
+export interface PlatformUserSearchItem {
+  id: string;
+  email: string;
+  displayName: string | null;
+  tenantId: string;
+  organizationName: string | null;
+  isPlatformAdmin: boolean;
+  isActive: boolean;
+  isTotpEnabled: boolean;
+  totpEnabledAt: string | null;
+}
+
+export type PlatformUserSearchResponse = ApiSuccessResponse<{
+  items: PlatformUserSearchItem[];
+}>;
+
+export type PlatformUserMfaResetResponse = ApiSuccessResponse<{
+  userId: string;
+  revokedSessions: number;
+}>;
 export type RefreshTokenResponse = ApiSuccessResponse<AuthSessionData>;
 export type LogoutResponse = ApiSuccessResponse<null>;
+export type MfaStatusResponse = ApiSuccessResponse<MfaStatus>;
+export type TotpEnrollmentResponse = ApiSuccessResponse<TotpEnrollmentData>;
+export type BackupCodesResponse = ApiSuccessResponse<BackupCodesData>;
 
 export interface AuthHealthData {
   module: string;

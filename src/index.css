@@ -296,6 +296,28 @@ code {
   }
 }
 
+/* One-time-code boxes — caret stand-in for the transparent input on top */
+@keyframes otp-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.otp-caret-blink {
+  animation: otp-caret-blink 1.1s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otp-caret-blink {
+    animation: none;
+  }
+}
+
 /* Task board — grab / drag feedback (honors prefers-reduced-motion) */
 @keyframes task-board-drag-wiggle {
   0%,

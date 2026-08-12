@@ -5,10 +5,24 @@ import { setupInterceptors } from '@/lib/api/interceptor';
 import type {
   AcceptInvitePayload,
   AcceptInviteResponse,
+  BackupCodesResponse,
   BillingPlansResponse,
   BillingPlanResponse,
   CancelSubscriptionPayload,
   CancelSubscriptionResponse,
+  DisableTotpPayload,
+  EnableTotpPayload,
+  MfaStatusResponse,
+  RegenerateBackupCodesPayload,
+  TotpEnrollmentResponse,
+  UpdateMfaPreferencesPayload,
+  VerifyMfaPayload,
+  RequestLoginCodePayload,
+  PlatformUserSearchQuery,
+  VerifyMfaResponse,
+  RequestLoginCodeResponse,
+  PlatformUserSearchResponse,
+  PlatformUserMfaResetResponse,
   CreateUploadSignaturePayload,
   CreateUploadSignatureResponse,
   CreateWorkspacePayload,
@@ -101,6 +115,27 @@ export type {
   LogoutPayload,
   LogoutResponse,
   LoginResponse,
+  LoginResultData,
+  MfaChallengeMethod,
+  MfaRequiredData,
+  MfaStatus,
+  MfaStatusResponse,
+  TotpEnrollmentData,
+  TotpEnrollmentResponse,
+  BackupCodesData,
+  BackupCodesResponse,
+  DisableTotpPayload,
+  EnableTotpPayload,
+  RegenerateBackupCodesPayload,
+  UpdateMfaPreferencesPayload,
+  VerifyMfaPayload,
+  RequestLoginCodePayload,
+  PlatformUserSearchQuery,
+  VerifyMfaResponse,
+  RequestLoginCodeResponse,
+  PlatformUserSearchResponse,
+  PlatformUserSearchItem,
+  PlatformUserMfaResetResponse,
   RefreshTokenPayload,
   RefreshTokenResponse,
   RequestRefundPayload,
@@ -215,6 +250,54 @@ export const LOGOUT = (
   data: LogoutPayload = {},
 ): Promise<AxiosResponse<LogoutResponse>> =>
   API.post<LogoutResponse>('/auth/logout', data);
+
+export const VERIFY_MFA = (
+  data: VerifyMfaPayload,
+): Promise<AxiosResponse<VerifyMfaResponse>> =>
+  API.post<VerifyMfaResponse>('/auth/mfa/verify', data);
+
+export const REQUEST_LOGIN_CODE = (
+  data: RequestLoginCodePayload,
+): Promise<AxiosResponse<RequestLoginCodeResponse>> =>
+  API.post<RequestLoginCodeResponse>('/auth/login/email-code', data);
+
+export const SEARCH_PLATFORM_USERS = (
+  params: PlatformUserSearchQuery,
+): Promise<AxiosResponse<PlatformUserSearchResponse>> =>
+  API.get<PlatformUserSearchResponse>('/platform/users', { params });
+
+export const RESET_PLATFORM_USER_MFA = (
+  userId: string,
+): Promise<AxiosResponse<PlatformUserMfaResetResponse>> =>
+  API.post<PlatformUserMfaResetResponse>(
+    `/platform/users/${userId}/mfa/reset`,
+  );
+
+export const GET_MFA_STATUS = (): Promise<AxiosResponse<MfaStatusResponse>> =>
+  API.get<MfaStatusResponse>('/auth/mfa/status');
+
+export const SETUP_TOTP = (): Promise<AxiosResponse<TotpEnrollmentResponse>> =>
+  API.post<TotpEnrollmentResponse>('/auth/mfa/totp/setup');
+
+export const ENABLE_TOTP = (
+  data: EnableTotpPayload,
+): Promise<AxiosResponse<BackupCodesResponse>> =>
+  API.post<BackupCodesResponse>('/auth/mfa/totp/enable', data);
+
+export const DISABLE_TOTP = (
+  data: DisableTotpPayload,
+): Promise<AxiosResponse<MfaStatusResponse>> =>
+  API.post<MfaStatusResponse>('/auth/mfa/totp/disable', data);
+
+export const REGENERATE_BACKUP_CODES = (
+  data: RegenerateBackupCodesPayload,
+): Promise<AxiosResponse<BackupCodesResponse>> =>
+  API.post<BackupCodesResponse>('/auth/mfa/backup-codes/regenerate', data);
+
+export const PATCH_MFA_PREFERENCES = (
+  data: UpdateMfaPreferencesPayload,
+): Promise<AxiosResponse<MfaStatusResponse>> =>
+  API.patch<MfaStatusResponse>('/auth/mfa/preferences', data);
 
 export const REFRESH_TOKEN = (
   data: RefreshTokenPayload = {},

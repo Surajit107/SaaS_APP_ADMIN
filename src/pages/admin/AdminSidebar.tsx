@@ -1,4 +1,15 @@
-import { Bot, Building2, CreditCard, Gauge, House, LayoutDashboard, Loader2, LogOut } from 'lucide-react';
+import {
+  Bot,
+  Building2,
+  CreditCard,
+  Gauge,
+  House,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  ShieldCheck,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import {
@@ -51,6 +62,11 @@ const NAV_ITEMS = [
     label: 'AI assistant',
     to: '/admin/ai-chatbot',
     icon: Bot,
+  },
+  {
+    label: 'Settings',
+    to: '/admin/settings',
+    icon: SlidersHorizontal,
   },
 ] as const;
 
@@ -155,6 +171,18 @@ export function AdminSidebar({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onSelect={(e: Event) => {
+                      e.preventDefault();
+                      if (isMobile) {
+                        setOpenMobile(false);
+                      }
+                      void navigate('/admin/settings');
+                    }}
+                  >
+                    <ShieldCheck aria-hidden />
+                    Security &amp; 2FA
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={(e: Event) => {
                       e.preventDefault();

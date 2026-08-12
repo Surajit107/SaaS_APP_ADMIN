@@ -3,6 +3,7 @@ import { Navigate, Route } from 'react-router-dom';
 
 import { AdminAiChatbotPage } from '@/pages/admin/AdminAiChatbotPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
+import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage';
 import { AdminSubscriptionsPage } from '@/pages/admin/AdminSubscriptionsPage';
 import { AdminTenantsPage } from '@/pages/admin/AdminTenantsPage';
 import { AdminLayout } from '@/pages/admin/AdminLayout';
@@ -51,6 +52,7 @@ export const adminRoutes = (
       <Route element={<AdminTenantsPage />} path="tenants" />
       <Route element={<AdminAiChatbotPage />} path="ai-chatbot" />
       <Route element={<AdminSubscriptionsPage />} path="subscriptions" />
+      <Route element={<AdminSettingsPage />} path="settings" />
     </Route>
   </>
 );
